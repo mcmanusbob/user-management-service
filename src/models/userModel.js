@@ -42,30 +42,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  emailVerificationToken: {
-    type: String,
-    select: false
-  },
-  emailVerificationExpires: {
-    type: Date,
-    select: false
-  },
-  passwordResetToken: {
-    type: String,
-    select: false
-  },
-  passwordResetExpires: {
-    type: Date,
-    select: false
-  },
   lastLogin: {
-    type: Date
-  },
-  loginAttempts: {
-    type: Number,
-    default: 0
-  },
-  lockUntil: {
     type: Date
   },
   refreshTokens: [{
@@ -85,10 +62,6 @@ const userSchema = new mongoose.Schema({
     transform: function(doc, ret) {
       delete ret.password;
       delete ret.refreshTokens;
-      delete ret.emailVerificationToken;
-      delete ret.emailVerificationExpires;
-      delete ret.passwordResetToken;
-      delete ret.passwordResetExpires;
       delete ret.__v;
       return ret;
     }
@@ -97,17 +70,10 @@ const userSchema = new mongoose.Schema({
 
 // Indexes
 userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ emailVerificationToken: 1 });
-userSchema.index({ passwordResetToken: 1 });
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
-});
-
-// Virtual for account lock status
-userSchema.virtual('isLocked').get(function() {
-  return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
 // Pre-save middleware to hash password
@@ -128,33 +94,6 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     throw new Error('Password not available for comparison');
   }
   return bcrypt.compare(candidatePassword, this.password);
-};
-
-// Method to handle failed login attempts
-userSchema.methods.incLoginAttempts = async function() {
-  // If we have a previous lock that has expired, restart at 1
-  if (this.lockUntil && this.lockUntil < Date.now()) {
-    return this.updateOne({
-      $unset: { lockUntil: 1 },
-      $set: { loginAttempts: 1 }
-    });
-  }
-  
-  const updates = { $inc: { loginAttempts: 1 } };
-  
-  // Lock account after 5 attempts for 2 hours
-  if (this.loginAttempts + 1 >= 5 && !this.isLocked) {
-    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // 2 hours
-  }
-  
-  return this.updateOne(updates);
-};
-
-// Method to reset login attempts
-userSchema.methods.resetLoginAttempts = async function() {
-  return this.updateOne({
-    $unset: { loginAttempts: 1, lockUntil: 1 }
-  });
 };
 
 // Method to add refresh token

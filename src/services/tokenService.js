@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const authConfig = require('../config/auth');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 
@@ -12,8 +11,17 @@ class TokenService {
         iat: Math.floor(Date.now() / 1000)
       };
 
-      const accessToken = authConfig.generateAccessToken(payload);
-      const refreshToken = authConfig.generateRefreshToken({ userId: userId.toString() });
+      const accessToken = jwt.sign(payload, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn,
+        issuer: 'user-management-service',
+        audience: 'learning-platform'
+      });
+
+      const refreshToken = jwt.sign({ userId: userId.toString() }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn,
+        issuer: 'user-management-service',
+        audience: 'learning-platform'
+      });
 
       return {
         accessToken,
@@ -29,7 +37,10 @@ class TokenService {
 
   async verifyAccessToken(token) {
     try {
-      return authConfig.verifyAccessToken(token);
+      return jwt.verify(token, config.jwt.secret, {
+        issuer: 'user-management-service',
+        audience: 'learning-platform'
+      });
     } catch (error) {
       logger.error('Access token verification error:', error);
       throw new Error('Invalid access token');
@@ -38,7 +49,10 @@ class TokenService {
 
   async verifyRefreshToken(token) {
     try {
-      return authConfig.verifyRefreshToken(token);
+      return jwt.verify(token, config.jwt.refreshSecret, {
+        issuer: 'user-management-service',
+        audience: 'learning-platform'
+      });
     } catch (error) {
       logger.error('Refresh token verification error:', error);
       throw new Error('Invalid refresh token');
@@ -46,68 +60,10 @@ class TokenService {
   }
 
   extractTokenFromHeader(authHeader) {
-    return authConfig.extractTokenFromHeader(authHeader);
-  }
-
-  async decodeToken(token) {
-    try {
-      return jwt.decode(token, { complete: true });
-    } catch (error) {
-      logger.error('Token decode error:', error);
-      throw new Error('Failed to decode token');
-    }
-  }
-
-  isTokenExpired(token) {
-    try {
-      const decoded = jwt.decode(token);
-      if (!decoded || !decoded.exp) {
-        return true;
-      }
-      return Date.now() >= decoded.exp * 1000;
-    } catch (error) {
-      return true;
-    }
-  }
-
-  getTokenExpirationTime(token) {
-    try {
-      const decoded = jwt.decode(token);
-      if (!decoded || !decoded.exp) {
-        return null;
-      }
-      return new Date(decoded.exp * 1000);
-    } catch (error) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return null;
     }
-  }
-
-  async generatePasswordResetToken() {
-    try {
-      const payload = {
-        type: 'password_reset',
-        iat: Math.floor(Date.now() / 1000)
-      };
-
-      return jwt.sign(payload, config.jwt.secret, { expiresIn: '10m' });
-    } catch (error) {
-      logger.error('Password reset token generation error:', error);
-      throw new Error('Failed to generate password reset token');
-    }
-  }
-
-  async generateEmailVerificationToken() {
-    try {
-      const payload = {
-        type: 'email_verification',
-        iat: Math.floor(Date.now() / 1000)
-      };
-
-      return jwt.sign(payload, config.jwt.secret, { expiresIn: '24h' });
-    } catch (error) {
-      logger.error('Email verification token generation error:', error);
-      throw new Error('Failed to generate email verification token');
-    }
+    return authHeader.substring(7);
   }
 }
 

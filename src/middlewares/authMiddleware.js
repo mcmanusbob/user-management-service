@@ -64,33 +64,6 @@ class AuthMiddleware {
       }
     };
   }
-
-  async optionalAuth(req, res, next) {
-    try {
-      const authHeader = req.headers.authorization;
-      const token = tokenService.extractTokenFromHeader(authHeader);
-
-      if (!token) {
-        req.user = null;
-        return next();
-      }
-
-      const decoded = await tokenService.verifyAccessToken(token);
-      const user = await User.findById(decoded.userId);
-      
-      if (user && user.isActive) {
-        req.user = decoded;
-      } else {
-        req.user = null;
-      }
-
-      next();
-    } catch (error) {
-      // For optional auth, we don't return error, just set user to null
-      req.user = null;
-      next();
-    }
-  }
 }
 
 module.exports = new AuthMiddleware();

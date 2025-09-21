@@ -13,12 +13,10 @@ const constructMongoUri = (isTest = false) => {
     (process.env.MONGO_TEST_DATABASE || 'learning_platform_users_test') : 
     (process.env.MONGO_DATABASE || 'learning_platform_users');
   
-  // If individual components are provided, construct the URI
   if (username && password && host && port) {
     return `mongodb://${username}:${password}@${host}:${port}/${database}`;
   }
   
-  // Fallback to direct URI if provided
   return isTest ? 
     (process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/learning_platform_users_test') :
     (process.env.MONGODB_URI || 'mongodb://localhost:27017/learning_platform_users');
@@ -39,9 +37,6 @@ const config = {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      bufferCommands: false,
-      bufferMaxEntries: 0,
-      // Additional options for authentication
       authSource: 'admin'
     }
   },
@@ -73,7 +68,6 @@ const config = {
   }
 };
 
-// Validate required environment variables
 const requiredEnvVars = [
   'MONGO_USERNAME',
   'MONGO_PASSWORD', 
@@ -90,7 +84,6 @@ if (missingEnvVars.length > 0 && config.server.env !== 'test') {
   process.exit(1);
 }
 
-// Log database configuration (without sensitive data)
 if (config.server.env === 'development') {
   console.log('Database Configuration:');
   console.log('- Host:', config.mongo.host);
